@@ -481,9 +481,122 @@ body {
 
 .answer-body {
   font-size: 0.95rem;
-  line-height: 1.65;
+  line-height: 1.7;
   color: var(--text-primary);
-  white-space: pre-wrap;
+}
+
+/* Markdown Rendering */
+.markdown-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.markdown-content p {
+  margin: 0;
+  line-height: 1.7;
+}
+
+.markdown-content strong,
+.markdown-content b {
+  font-weight: 700;
+  color: #ffffff;
+  background: rgba(99, 102, 241, 0.12);
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.markdown-content em,
+.markdown-content i {
+  font-style: italic;
+  color: #cbd5e1;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 4px 0 8px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.markdown-content li {
+  line-height: 1.6;
+}
+
+.markdown-content li::marker {
+  color: var(--accent-primary);
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4 {
+  font-family: var(--font-display);
+  font-weight: 600;
+  color: #ffffff;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.markdown-content h1 { font-size: 1.25rem; }
+.markdown-content h2 { font-size: 1.15rem; }
+.markdown-content h3 { font-size: 1.05rem; }
+.markdown-content h4 { font-size: 0.95rem; }
+
+.markdown-content code {
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+  background: rgba(0, 0, 0, 0.4);
+  color: var(--accent-cyan);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--border-subtle);
+}
+
+.markdown-content pre {
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  overflow-x: auto;
+  margin: 8px 0;
+}
+
+.markdown-content pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #e2e8f0;
+}
+
+.markdown-content blockquote {
+  border-left: 3px solid var(--accent-primary);
+  background: rgba(99, 102, 241, 0.06);
+  padding: 8px 14px;
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  color: #cbd5e1;
+  font-style: italic;
+}
+
+.markdown-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 8px 0;
+  font-size: 0.875rem;
+}
+
+.markdown-content th,
+.markdown-content td {
+  border: 1px solid var(--border-subtle);
+  padding: 8px 12px;
+  text-align: left;
+}
+
+.markdown-content th {
+  background: rgba(255, 255, 255, 0.05);
+  font-weight: 600;
+  color: #ffffff;
 }
 
 /* Sources & Citations */

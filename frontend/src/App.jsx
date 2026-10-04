@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import {
   FileText,
   UploadCloud,
@@ -107,7 +109,7 @@ export default function App() {
       setMessages([
         {
           role: 'system',
-          content: `Document "${res.filename}" is processed and ready! ${res.chunk_count} chunks indexed into the vector store. Ask any question below.`
+          content: `Document **"${res.filename}"** is processed and ready! **${res.chunk_count} chunks** indexed into the vector store. Ask any question below.`
         }
       ]);
     } catch (err) {
@@ -250,7 +252,7 @@ export default function App() {
 
           <div className="badge badge-blue">
             <Cpu size={14} />
-            <span>RAG Grounded</span>
+            <span>120B Reasoning RAG</span>
           </div>
           <div className={`badge ${health.status === 'ok' ? 'badge-green' : ''}`}>
             <span className="status-dot"></span>
@@ -483,7 +485,12 @@ export default function App() {
                         </button>
                       </div>
 
-                      <div className="answer-body">{msg.content}</div>
+                      {/* Render Rich Markdown with GFM */}
+                      <div className="answer-body markdown-content">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                          {msg.content}
+                        </ReactMarkdown>
+                      </div>
 
                       {/* Sources & Citations */}
                       {msg.sources && msg.sources.length > 0 && (
