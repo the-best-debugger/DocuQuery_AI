@@ -244,24 +244,57 @@ VITE_API_URL=http://localhost:8000
 
 ---
 
-## 12. Deployment Instructions
+## 12. Production Deployment (Vercel + Render)
 
-### Frontend (Vercel)
-1. Push project to GitHub.
-2. In [Vercel](https://vercel.com), import repository with Root Directory set to `frontend`.
-3. Set environment variable `VITE_API_URL` to your hosted backend URL.
-4. Deploy!
+The frontend and backend are hosted separately for optimal scalability and security:
 
-### Backend (Render / Railway)
-1. Create a Web Service on [Render](https://render.com) or [Railway](https://railway.app).
-2. Set Root Directory to `backend`.
-3. Build Command: `npm install`
-4. Start Command: `npm start`
-5. Set environment variables:
-   - `FRONTEND_URL`: Your deployed Vercel URL
-   - `GEMINI_API_KEY`: Your Gemini API key
-   - `LLM_PROVIDER`: `gemini`
-6. Deploy!
+```text
+┌────────────────────────────────┐         HTTPS / JSON         ┌────────────────────────────────┐
+│        VERCEL FRONTEND         │ ───────────────────────────> │     RENDER BACKEND SERVICE     │
+│   https://your-app.vercel.app  │ <─────────────────────────── │ https://your-backend.onrender  │
+└────────────────────────────────┘      Cross-Origin Requests   └────────────────────────────────┘
+```
+
+---
+
+### Part A: Deploy Backend to Render (Free Web Service)
+
+1. Push your project code to GitHub.
+2. Go to the [Render Dashboard](https://dashboard.render.com/) and click **New +** → **Web Service**.
+3. Connect your GitHub repository.
+4. Fill in the service configuration:
+   - **Name**: `docuquery-backend`
+   - **Root Directory**: `backend`
+   - **Environment**: `Node`
+   - **Build Command**: `npm install`
+   - **Start Command**: `node src/index.js`
+   - **Instance Type**: `Free`
+5. Under **Environment Variables**, add:
+   - `PORT`: `8000`
+   - `LLM_PROVIDER`: `groq` (or `gemini`)
+   - `GROQ_API_KEY`: `gsk_...` (Your Groq API key)
+   - `GROQ_MODEL`: `openai/gpt-oss-120b`
+   - `FRONTEND_URL`: `https://your-app.vercel.app` (or your initial frontend domain)
+6. Click **Deploy Web Service**.
+7. Copy your backend live URL (e.g., `https://docuquery-backend.onrender.com`).
+
+---
+
+### Part B: Deploy Frontend to Vercel
+
+1. Go to [Vercel Dashboard](https://vercel.com/dashboard) and click **Add New...** → **Project**.
+2. Select your GitHub repository.
+3. Configure the project settings:
+   - **Framework Preset**: `Vite`
+   - **Root Directory**: Click *Edit* and select **`frontend`**
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+4. Under **Environment Variables**, add:
+   - `VITE_API_URL`: Paste your Render backend URL (e.g. `https://docuquery-backend.onrender.com`)
+5. Click **Deploy**.
+6. Once deployed, open your live Vercel URL!
+
+*(Optional)* If you hadn't added your Vercel URL to `FRONTEND_URL` on Render yet, go back to Render and update `FRONTEND_URL` with your exact Vercel URL.
 
 ---
 
