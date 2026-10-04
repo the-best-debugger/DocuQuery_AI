@@ -96,6 +96,14 @@ export class VectorStore {
     this.chunks = this.chunks.filter(c => c.document_id !== documentId);
     this.persist();
   }
+
+  /**
+   * Clears all indexed chunks from vector store
+   */
+  clearAll() {
+    this.chunks = [];
+    this.persist();
+  }
 }
 
 export const vectorStore = new VectorStore();

@@ -60,5 +60,10 @@ export const dbService = {
     const db = readDb();
     db.documents = db.documents.filter(d => d.id !== id);
     writeDb(db);
+  },
+
+  clearAll: () => {
+    writeDb({ documents: [] });
   }
 };
+

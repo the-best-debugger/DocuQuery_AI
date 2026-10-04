@@ -36,6 +36,28 @@ export async function listDocuments() {
   return data.documents || [];
 }
 
+export async function deleteDocument(documentId) {
+  const res = await fetch(`${API_BASE}/api/documents/${documentId}`, {
+    method: 'DELETE',
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to delete document');
+  }
+  return data;
+}
+
+export async function clearSessionDocuments() {
+  const res = await fetch(`${API_BASE}/api/documents`, {
+    method: 'DELETE',
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Failed to clear session documents');
+  }
+  return data;
+}
+
 export async function askQuestion(documentId, question) {
   const res = await fetch(`${API_BASE}/api/chat`, {
     method: 'POST',

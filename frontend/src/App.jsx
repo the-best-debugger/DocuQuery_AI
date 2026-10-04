@@ -14,10 +14,20 @@ import {
   Copy,
   Check,
   Trash2,
+  RotateCcw,
   HelpCircle,
-  Cpu
+  Cpu,
+  XCircle,
+  ShieldCheck
 } from 'lucide-react';
-import { checkHealth, uploadDocument, listDocuments, askQuestion } from './api';
+import {
+  checkHealth,
+  uploadDocument,
+  listDocuments,
+  deleteDocument,
+  clearSessionDocuments,
+  askQuestion
+} from './api';
 
 const SAMPLE_PROMPTS = [
   "What is the main topic of this document?",
@@ -37,13 +47,14 @@ export default function App() {
   const [messages, setMessages] = useState([]);
   const [isAnswering, setIsAnswering] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successNotice, setSuccessNotice] = useState('');
   const [copiedIndex, setCopiedIndex] = useState(null);
   const [expandedSources, setExpandedSources] = useState({});
 
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
 
-  // Poll / Check health and document list on load
+  // Initial load
   useEffect(() => {
     async function init() {
       const h = await checkHealth();
@@ -61,7 +72,7 @@ export default function App() {
     init();
   }, []);
 
-  // Auto scroll chat to bottom
+  // Auto scroll chat
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isAnswering]);
@@ -78,6 +89,7 @@ export default function App() {
 
     setIsUploading(true);
     setErrorMessage('');
+    setSuccessNotice('');
 
     try {
       const res = await uploadDocument(file);
@@ -91,7 +103,7 @@ export default function App() {
       setDocuments(prev => [newDoc, ...prev.filter(d => d.id !== newDoc.id)]);
       setActiveDoc(newDoc);
       
-      // Reset chat for the new document
+      // Reset chat for the newly ingested document
       setMessages([
         {
           role: 'system',
@@ -102,6 +114,39 @@ export default function App() {
       setErrorMessage(err.message || 'Failed to upload document.');
     } finally {
       setIsUploading(false);
+    }
+  };
+
+  // Delete specific document
+  const handleDeleteDoc = async (docId, e) => {
+    if (e) e.stopPropagation();
+    try {
+      await deleteDocument(docId);
+      const remaining = documents.filter(d => d.id !== docId);
+      setDocuments(remaining);
+      if (activeDoc?.id === docId) {
+        setActiveDoc(remaining.length > 0 ? remaining[0] : null);
+        setMessages([]);
+      }
+      setSuccessNotice('Document removed from vector storage.');
+      setTimeout(() => setSuccessNotice(''), 3000);
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to delete document.');
+    }
+  };
+
+  // Clear full session (documents, vectors, chat)
+  const handleClearSession = async () => {
+    try {
+      await clearSessionDocuments();
+      setDocuments([]);
+      setActiveDoc(null);
+      setMessages([]);
+      setErrorMessage('');
+      setSuccessNotice('Session cleared: All uploaded documents and vector embeddings have been completely removed.');
+      setTimeout(() => setSuccessNotice(''), 4000);
+    } catch (err) {
+      setErrorMessage(err.message || 'Failed to clear session.');
     }
   };
 
@@ -139,6 +184,7 @@ export default function App() {
     setQuestion('');
     setIsAnswering(true);
     setErrorMessage('');
+    setSuccessNotice('');
 
     try {
       const result = await askQuestion(activeDoc.id, q.trim());
@@ -190,6 +236,18 @@ export default function App() {
         </div>
 
         <div className="header-badges">
+          {documents.length > 0 && (
+            <button
+              className="btn-secondary"
+              style={{ color: 'var(--accent-rose)', borderColor: 'rgba(244, 63, 94, 0.3)' }}
+              onClick={handleClearSession}
+              title="Clear all documents, indexed vectors and chat"
+            >
+              <RotateCcw size={14} />
+              <span>Clear Session</span>
+            </button>
+          )}
+
           <div className="badge badge-blue">
             <Cpu size={14} />
             <span>RAG Grounded</span>
@@ -200,6 +258,17 @@ export default function App() {
           </div>
         </div>
       </header>
+
+      {/* Success Notification */}
+      {successNotice && (
+        <div className="alert-error" style={{ background: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.3)', color: '#6ee7b7' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShieldCheck size={18} />
+            <span>{successNotice}</span>
+          </div>
+          <button className="alert-close" onClick={() => setSuccessNotice('')}>×</button>
+        </div>
+      )}
 
       {/* Error Alert */}
       {errorMessage && (
@@ -216,10 +285,23 @@ export default function App() {
       <div className="main-grid">
         {/* Left Panel: Document Upload & Context */}
         <aside className="panel">
-          <h2 className="panel-title">
-            <FileText size={20} color="var(--accent-primary)" />
-            Document Source
-          </h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 className="panel-title">
+              <FileText size={20} color="var(--accent-primary)" />
+              Document Source
+            </h2>
+            {documents.length > 0 && (
+              <button
+                className="btn-secondary"
+                style={{ fontSize: '0.75rem', padding: '4px 8px', color: 'var(--accent-rose)' }}
+                onClick={handleClearSession}
+                title="Wipe all uploaded documents and reset session"
+              >
+                <Trash2 size={13} />
+                <span>Clear All</span>
+              </button>
+            )}
+          </div>
 
           {/* Upload Dropzone */}
           <div
@@ -270,6 +352,13 @@ export default function App() {
                     </span>
                   </div>
                 </div>
+                <button
+                  onClick={(e) => handleDeleteDoc(activeDoc.id, e)}
+                  title="Remove this document"
+                  style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                >
+                  <Trash2 size={16} />
+                </button>
               </div>
             </div>
           )}
@@ -291,18 +380,27 @@ export default function App() {
                     }}
                   >
                     <div className="doc-item-title">{doc.filename}</div>
-                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      {doc.chunk_count} chunks
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {doc.chunk_count} chunks
+                      </span>
+                      <button
+                        onClick={(e) => handleDeleteDoc(doc.id, e)}
+                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                        title="Delete document"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* RAG Pipeline Explainer Badge */}
+          {/* Privacy & Session Notice */}
           <div style={{ marginTop: 'auto', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-            <strong style={{ color: 'var(--text-secondary)' }}>Workflow:</strong> Chunking → Vector Embeddings → Top-K Cosine Search → LLM Grounding → Source Citations.
+            <strong style={{ color: 'var(--text-secondary)' }}>Session Privacy:</strong> Documents & vectors are stored only during your session and can be wiped anytime with "Clear Session".
           </div>
         </aside>
 
@@ -325,7 +423,7 @@ export default function App() {
                 title="Clear chat history"
               >
                 <Trash2 size={14} />
-                <span>Clear</span>
+                <span>Clear Chat</span>
               </button>
             )}
           </div>

@@ -1,8 +1,11 @@
 import { Router } from 'express';
 import multer from 'multer';
+import fs from 'fs';
+import path from 'path';
 import { DocumentService } from '../services/documentService.js';
 import { vectorStore } from '../services/vectorStore.js';
 import { dbService } from '../services/dbService.js';
+import { config } from '../config.js';
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -67,5 +70,67 @@ documentRouter.get('/:id', (req, res) => {
     return res.json(doc);
   } catch (err) {
     return res.status(500).json({ error: 'Failed to get document' });
+  }
+});
+
+// Delete single document by ID
+documentRouter.delete('/:id', (req, res) => {
+  try {
+    const docId = req.params.id;
+    const doc = dbService.getDocument(docId);
+    if (!doc) {
+      return res.status(404).json({ error: 'Document not found' });
+    }
+
+    // 1. Remove from vector store
+    vectorStore.deleteDocumentChunks(docId);
+
+    // 2. Remove metadata
+    dbService.deleteDocument(docId);
+
+    // 3. Remove physical files if they exist in uploads/
+    try {
+      const files = fs.readdirSync(config.UPLOAD_DIR);
+      for (const f of files) {
+        if (f.startsWith(docId)) {
+          fs.unlinkSync(path.join(config.UPLOAD_DIR, f));
+        }
+      }
+    } catch (fsErr) {
+      console.warn('File cleanup notice:', fsErr.message);
+    }
+
+    return res.json({ message: 'Document and associated vectors deleted successfully' });
+  } catch (err) {
+    console.error('Delete document error:', err);
+    return res.status(500).json({ error: 'Failed to delete document' });
+  }
+});
+
+// Clear all session documents and vector data
+documentRouter.delete('/', (req, res) => {
+  try {
+    // 1. Clear vector store
+    vectorStore.clearAll();
+
+    // 2. Clear metadata DB
+    dbService.clearAll();
+
+    // 3. Clean all files in uploads directory
+    try {
+      const files = fs.readdirSync(config.UPLOAD_DIR);
+      for (const f of files) {
+        if (f !== '.gitkeep') {
+          fs.unlinkSync(path.join(config.UPLOAD_DIR, f));
+        }
+      }
+    } catch (fsErr) {
+      console.warn('Uploads cleanup notice:', fsErr.message);
+    }
+
+    return res.json({ message: 'All session documents and indexed vectors cleared successfully' });
+  } catch (err) {
+    console.error('Clear all documents error:', err);
+    return res.status(500).json({ error: 'Failed to clear session documents' });
   }
 });
