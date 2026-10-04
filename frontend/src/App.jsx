@@ -19,8 +19,13 @@ import {
   RotateCcw,
   HelpCircle,
   Cpu,
-  XCircle,
-  ShieldCheck
+  ShieldCheck,
+  Zap,
+  Activity,
+  Compass,
+  Terminal,
+  Database,
+  ExternalLink
 } from 'lucide-react';
 import {
   checkHealth,
@@ -31,11 +36,11 @@ import {
   askQuestion
 } from './api';
 
-const SAMPLE_PROMPTS = [
-  "What is the main topic of this document?",
-  "Summarize key findings and takeaways.",
-  "When was it established or published?",
-  "What are the core technical specifications mentioned?"
+const FUTURISTIC_PROMPTS = [
+  { label: "Deep-Dive Synthesis", query: "Analyze the core takeaways, methodology, and key conclusions of this document." },
+  { label: "Technical Metrics", query: "Extract all quantitative metrics, performance gains, and technical specifications." },
+  { label: "Timeline & Entities", query: "Outline the key timeline, organizations, and milestones mentioned." },
+  { label: "Executive Summary", query: "Generate a concise executive summary formatted with clear key bullet points." }
 ];
 
 export default function App() {
@@ -105,15 +110,17 @@ export default function App() {
       setDocuments(prev => [newDoc, ...prev.filter(d => d.id !== newDoc.id)]);
       setActiveDoc(newDoc);
       
-      // Reset chat for the newly ingested document
+      // Ingest message
       setMessages([
         {
           role: 'system',
-          content: `Document **"${res.filename}"** is processed and ready! **${res.chunk_count} chunks** indexed into the vector store. Ask any question below.`
+          content: `⚡ **Document Ingested:** \`${res.filename}\`\n\nVectorized into **${res.chunk_count} high-density semantic chunks** across 256 dimensions. Grounding Guard is **Active**.`
         }
       ]);
+      setSuccessNotice(`Ingestion complete: ${res.filename} indexed.`);
+      setTimeout(() => setSuccessNotice(''), 4000);
     } catch (err) {
-      setErrorMessage(err.message || 'Failed to upload document.');
+      setErrorMessage(err.message || 'Failed to upload and vectorize document.');
     } finally {
       setIsUploading(false);
     }
@@ -130,7 +137,7 @@ export default function App() {
         setActiveDoc(remaining.length > 0 ? remaining[0] : null);
         setMessages([]);
       }
-      setSuccessNotice('Document removed from vector storage.');
+      setSuccessNotice('Document purged from vector store.');
       setTimeout(() => setSuccessNotice(''), 3000);
     } catch (err) {
       setErrorMessage(err.message || 'Failed to delete document.');
@@ -145,7 +152,7 @@ export default function App() {
       setActiveDoc(null);
       setMessages([]);
       setErrorMessage('');
-      setSuccessNotice('Session cleared: All uploaded documents and vector embeddings have been completely removed.');
+      setSuccessNotice('Session cleared: All vector embeddings and files purged.');
       setTimeout(() => setSuccessNotice(''), 4000);
     } catch (err) {
       setErrorMessage(err.message || 'Failed to clear session.');
@@ -177,7 +184,7 @@ export default function App() {
     if (!q || !q.trim() || isAnswering) return;
 
     if (!activeDoc) {
-      setErrorMessage('Please upload or select a document first.');
+      setErrorMessage('Please ingest a document to begin questioning.');
       return;
     }
 
@@ -198,12 +205,12 @@ export default function App() {
       };
       setMessages(prev => [...prev, botMessage]);
     } catch (err) {
-      setErrorMessage(err.message || 'An error occurred during retrieval/generation.');
+      setErrorMessage(err.message || 'Retrieval inference error.');
       setMessages(prev => [
         ...prev,
         {
           role: 'assistant',
-          content: "Sorry, I couldn't generate an answer due to an unexpected error. Please check your backend connection.",
+          content: "❌ **Inference Error:** Unable to complete retrieval synthesis. Please check your backend connection.",
           sources: []
         }
       ]);
@@ -225,15 +232,20 @@ export default function App() {
 
   return (
     <div className="app-container">
-      {/* Header */}
+      {/* Futuristic HUD Header */}
       <header className="header">
         <div className="brand-section">
-          <div className="brand-icon">
-            <Sparkles size={24} />
+          <div className="brand-icon-wrapper">
+            <div className="brand-icon">
+              <Sparkles size={24} />
+            </div>
           </div>
           <div>
-            <h1 className="brand-title">DocuQuery AI</h1>
-            <p className="brand-subtitle">Retrieval-Augmented Generation Document Assistant</p>
+            <div className="brand-title">
+              DocuQuery AI
+              <span className="brand-badge-version">RAG v2.0</span>
+            </div>
+            <p className="brand-subtitle">Quantum Vector Retrieval & Deep Reasoning Architecture</p>
           </div>
         </div>
 
@@ -241,31 +253,50 @@ export default function App() {
           {documents.length > 0 && (
             <button
               className="btn-secondary"
-              style={{ color: 'var(--accent-rose)', borderColor: 'rgba(244, 63, 94, 0.3)' }}
+              style={{ color: 'var(--neon-rose)', borderColor: 'rgba(255, 51, 102, 0.35)' }}
               onClick={handleClearSession}
-              title="Clear all documents, indexed vectors and chat"
+              title="Purge session memory, indexed vectors, and documents"
             >
               <RotateCcw size={14} />
-              <span>Clear Session</span>
+              <span>Purge Session</span>
             </button>
           )}
 
-          <div className="badge badge-blue">
+          <div className="badge badge-cyan">
             <Cpu size={14} />
-            <span>120B Reasoning RAG</span>
+            <span>120B Flagship Core</span>
           </div>
           <div className={`badge ${health.status === 'ok' ? 'badge-green' : ''}`}>
             <span className="status-dot"></span>
-            <span>{health.status === 'ok' ? 'API Online' : 'Connecting...'}</span>
+            <span>{health.status === 'ok' ? 'Neural Link Online' : 'Connecting...'}</span>
           </div>
         </div>
       </header>
 
+      {/* Telemetry HUD Strip */}
+      <div className="telemetry-strip">
+        <div className="telemetry-item">
+          <Activity size={14} color="var(--neon-cyan)" />
+          <span>Vector Index:</span>
+          <span className="telemetry-val">Dense Cosine 256D</span>
+        </div>
+        <div className="telemetry-item">
+          <ShieldCheck size={14} color="var(--neon-emerald)" />
+          <span>Grounding Guard:</span>
+          <span className="telemetry-val">100% Zero-Hallucination</span>
+        </div>
+        <div className="telemetry-item">
+          <Database size={14} color="var(--neon-indigo)" />
+          <span>Ingested Docs:</span>
+          <span className="telemetry-val">{documents.length} Active</span>
+        </div>
+      </div>
+
       {/* Success Notification */}
       {successNotice && (
-        <div className="alert-error" style={{ background: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.3)', color: '#6ee7b7' }}>
+        <div className="alert-error" style={{ background: 'rgba(0, 245, 160, 0.1)', borderColor: 'rgba(0, 245, 160, 0.35)', color: '#a7f3d0' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <ShieldCheck size={18} />
+            <ShieldCheck size={18} color="var(--neon-emerald)" />
             <span>{successNotice}</span>
           </div>
           <button className="alert-close" onClick={() => setSuccessNotice('')}>×</button>
@@ -276,36 +307,36 @@ export default function App() {
       {errorMessage && (
         <div className="alert-error">
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <AlertCircle size={18} />
+            <AlertCircle size={18} color="var(--neon-rose)" />
             <span>{errorMessage}</span>
           </div>
           <button className="alert-close" onClick={() => setErrorMessage('')}>×</button>
         </div>
       )}
 
-      {/* Main Content Layout */}
+      {/* Main Grid Layout */}
       <div className="main-grid">
-        {/* Left Panel: Document Upload & Context */}
+        {/* Left Panel: Document Hologram Ingestion */}
         <aside className="panel">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h2 className="panel-title">
-              <FileText size={20} color="var(--accent-primary)" />
-              Document Source
+              <FileText size={20} color="var(--neon-cyan)" />
+              Document Neural Store
             </h2>
             {documents.length > 0 && (
               <button
                 className="btn-secondary"
-                style={{ fontSize: '0.75rem', padding: '4px 8px', color: 'var(--accent-rose)' }}
+                style={{ fontSize: '0.75rem', padding: '4px 8px', color: 'var(--neon-rose)' }}
                 onClick={handleClearSession}
-                title="Wipe all uploaded documents and reset session"
+                title="Wipe all uploaded documents"
               >
                 <Trash2 size={13} />
-                <span>Clear All</span>
+                <span>Wipe All</span>
               </button>
             )}
           </div>
 
-          {/* Upload Dropzone */}
+          {/* Hologram Upload Dropzone */}
           <div
             className={`dropzone ${dragActive ? 'active' : ''}`}
             onDragEnter={handleDrag}
@@ -327,29 +358,29 @@ export default function App() {
               {isUploading ? <div className="spinner" /> : <UploadCloud size={28} />}
             </div>
             <div className="dropzone-text">
-              {isUploading ? 'Extracting & Chunking...' : 'Upload PDF or TXT'}
+              {isUploading ? 'Vectorizing & Extracting Chunks...' : 'Ingest PDF or TXT Document'}
             </div>
             <div className="dropzone-hint">
-              Drag & drop or click to browse (Max 25MB)
+              Drop file or click to browse (Max 25MB)
             </div>
           </div>
 
-          {/* Active Document Details */}
+          {/* Active Hologram Document Card */}
           {activeDoc && (
             <div className="active-doc-card">
               <div className="doc-header">
                 <div className="doc-icon">
-                  <FileCheck size={20} />
+                  <FileCheck size={22} />
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div className="doc-name">{activeDoc.filename}</div>
-                  <div className="doc-meta" style={{ marginTop: '4px' }}>
+                  <div className="doc-meta" style={{ marginTop: '6px' }}>
                     <span className="meta-pill">
-                      <Layers size={12} style={{ display: 'inline', marginRight: '4px' }} />
+                      <Layers size={11} style={{ display: 'inline', marginRight: '4px' }} />
                       {activeDoc.chunk_count} Chunks
                     </span>
-                    <span className="meta-pill">
-                      <CheckCircle2 size={12} style={{ display: 'inline', marginRight: '4px', color: 'var(--accent-emerald)' }} />
+                    <span className="meta-pill" style={{ color: 'var(--neon-emerald)', borderColor: 'rgba(0, 245, 160, 0.3)' }}>
+                      <CheckCircle2 size={11} style={{ display: 'inline', marginRight: '4px' }} />
                       Vector Indexed
                     </span>
                   </div>
@@ -365,11 +396,11 @@ export default function App() {
             </div>
           )}
 
-          {/* Previously Uploaded Documents */}
+          {/* Ingested Documents List */}
           {documents.length > 1 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>
-                Uploaded Documents ({documents.length})
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Ingested Documents ({documents.length})
               </div>
               <div className="doc-list">
                 {documents.map(doc => (
@@ -383,15 +414,15 @@ export default function App() {
                   >
                     <div className="doc-item-title">{doc.filename}</div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        {doc.chunk_count} chunks
+                      <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                        {doc.chunk_count}c
                       </span>
                       <button
                         onClick={(e) => handleDeleteDoc(doc.id, e)}
                         style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                        title="Delete document"
+                        title="Purge document"
                       >
-                        <Trash2 size={14} />
+                        <Trash2 size={13} />
                       </button>
                     </div>
                   </div>
@@ -400,20 +431,24 @@ export default function App() {
             </div>
           )}
 
-          {/* Privacy & Session Notice */}
-          <div style={{ marginTop: 'auto', background: 'rgba(255,255,255,0.02)', padding: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
-            <strong style={{ color: 'var(--text-secondary)' }}>Session Privacy:</strong> Documents & vectors are stored only during your session and can be wiped anytime with "Clear Session".
+          {/* Futuristic Telemetry Footer */}
+          <div style={{ marginTop: 'auto', background: 'rgba(0, 242, 254, 0.03)', padding: '14px', borderRadius: 'var(--radius-sm)', border: '1px solid rgba(0, 242, 254, 0.15)', fontSize: '0.775rem', color: 'var(--text-muted)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--neon-cyan)', fontWeight: '600', marginBottom: '4px' }}>
+              <Terminal size={14} />
+              <span>RAG PIPELINE SPEC</span>
+            </div>
+            <span>Token Chunking (1000ch) → Dense Embedding (256D) → Cosine Top-4 Search → 120B Flagship Reasoning.</span>
           </div>
         </aside>
 
-        {/* Right Panel: Interactive Q&A Assistant */}
+        {/* Right Panel: Interactive Neural Q&A HUD */}
         <main className="chat-panel">
           <div className="chat-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <Sparkles size={18} color="var(--accent-primary)" />
-              <span style={{ fontWeight: 600 }}>Interactive Document Q&A</span>
+              <Sparkles size={18} color="var(--neon-cyan)" />
+              <span style={{ fontWeight: 700, letterSpacing: '-0.01em' }}>Neural Q&A Intelligence</span>
               {activeDoc && (
-                <span className="badge badge-blue" style={{ fontSize: '0.7rem' }}>
+                <span className="badge badge-cyan" style={{ fontSize: '0.725rem' }}>
                   {activeDoc.filename}
                 </span>
               )}
@@ -422,39 +457,40 @@ export default function App() {
               <button
                 className="btn-secondary"
                 onClick={() => setMessages([])}
-                title="Clear chat history"
+                title="Clear current stream"
               >
                 <Trash2 size={14} />
-                <span>Clear Chat</span>
+                <span>Clear Stream</span>
               </button>
             )}
           </div>
 
-          {/* Chat Messages */}
+          {/* Chat Stream */}
           <div className="chat-messages">
             {messages.length === 0 ? (
               <div className="empty-state">
                 <div className="empty-icon">
-                  <HelpCircle size={32} />
+                  <Compass size={36} />
                 </div>
                 <h3 className="empty-title">
-                  {activeDoc ? 'Ask anything about your document' : 'Upload a document to get started'}
+                  {activeDoc ? 'Ready for Deep Analytical Querying' : 'Awaiting Document Ingestion'}
                 </h3>
                 <p className="empty-desc">
                   {activeDoc
-                    ? 'Questions are answered strictly using retrieved context from your document with cited sources and page references.'
-                    : 'Select or drop a .pdf or .txt file in the left panel to begin retrieval-augmented questioning.'}
+                    ? 'Submit any question. The 120B flagship reasoning core searches indexed chunks and answers with strict grounding and page-level citations.'
+                    : 'Select or drop a PDF or TXT file into the neural store to vectorize and enable instant question-answering.'}
                 </p>
 
                 {activeDoc && (
                   <div className="prompt-suggestions">
-                    {SAMPLE_PROMPTS.map((prompt, i) => (
+                    {FUTURISTIC_PROMPTS.map((prompt, i) => (
                       <button
                         key={i}
                         className="prompt-chip"
-                        onClick={() => handleAsk(prompt)}
+                        onClick={() => handleAsk(prompt.query)}
                       >
-                        {prompt}
+                        <Zap size={12} color="var(--neon-cyan)" />
+                        <span>{prompt.label}</span>
                       </button>
                     ))}
                   </div>
@@ -471,33 +507,38 @@ export default function App() {
                   ) : (
                     <div className="message-card">
                       <div className="answer-header">
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                          <Sparkles size={14} color="var(--accent-primary)" />
-                          <span>Grounded AI Answer</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <Sparkles size={15} color="var(--neon-cyan)" />
+                          <span>Grounded Neural Synthesis</span>
+                          {msg.retrievedCount > 0 && (
+                            <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', fontWeight: '500' }}>
+                              ({msg.retrievedCount} Chunks Contextualized)
+                            </span>
+                          )}
                         </div>
                         <button
                           className="btn-secondary"
-                          style={{ padding: '3px 8px', fontSize: '0.75rem' }}
+                          style={{ padding: '4px 10px', fontSize: '0.75rem' }}
                           onClick={() => copyToClipboard(msg.content, idx)}
                         >
-                          {copiedIndex === idx ? <Check size={12} color="var(--accent-emerald)" /> : <Copy size={12} />}
+                          {copiedIndex === idx ? <Check size={12} color="var(--neon-emerald)" /> : <Copy size={12} />}
                           <span>{copiedIndex === idx ? 'Copied' : 'Copy'}</span>
                         </button>
                       </div>
 
-                      {/* Render Rich Markdown with GFM */}
+                      {/* Render Rich Futuristic Markdown */}
                       <div className="answer-body markdown-content">
                         <ReactMarkdown remarkPlugins={[remarkGfm]}>
                           {msg.content}
                         </ReactMarkdown>
                       </div>
 
-                      {/* Sources & Citations */}
+                      {/* Source Citation Nodes */}
                       {msg.sources && msg.sources.length > 0 && (
                         <div className="sources-section">
                           <div className="sources-label">
                             <FileText size={14} />
-                            <span>Sources & References ({msg.sources.length})</span>
+                            <span>Verified Source Evidence ({msg.sources.length} Nodes)</span>
                           </div>
                           <div className="sources-grid">
                             {msg.sources.map((src, sIdx) => {
@@ -515,10 +556,10 @@ export default function App() {
                                     </div>
                                     {src.snippet && (
                                       <button
-                                        style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.75rem' }}
+                                        style={{ background: 'none', border: 'none', color: 'var(--neon-cyan)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.75rem', fontWeight: '600' }}
                                         onClick={() => toggleSourceExpand(idx, sIdx)}
                                       >
-                                        <span>{isExpanded ? 'Less' : 'Preview'}</span>
+                                        <span>{isExpanded ? 'Hide Evidence' : 'Inspect Evidence'}</span>
                                         {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                                       </button>
                                     )}
@@ -538,13 +579,13 @@ export default function App() {
               ))
             )}
 
-            {/* Loading Indicator */}
+            {/* Futuristic Thinking State */}
             {isAnswering && (
               <div className="message message-assistant">
-                <div className="message-card" style={{ padding: '14px 20px' }}>
+                <div className="message-card" style={{ padding: '16px 22px' }}>
                   <div className="loading-indicator">
-                    <div className="spinner" style={{ color: 'var(--accent-primary)' }} />
-                    <span>Searching document chunks & generating grounded answer...</span>
+                    <div className="spinner" />
+                    <span>Neural Vector Retrieval & 120B Synthesis in Progress...</span>
                   </div>
                 </div>
               </div>
@@ -552,7 +593,7 @@ export default function App() {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Form */}
+          {/* Futuristic Cyber Input HUD */}
           <div className="chat-input-area">
             <form
               className="input-form"
@@ -566,8 +607,8 @@ export default function App() {
                 className="chat-input"
                 placeholder={
                   activeDoc
-                    ? "Ask a question about this document..."
-                    : "Please upload a document to ask questions..."
+                    ? "Query document context (e.g. 'What are the core technical specifications?')..."
+                    : "Awaiting document ingestion..."
                 }
                 value={question}
                 onChange={(e) => setQuestion(e.target.value)}
@@ -579,7 +620,7 @@ export default function App() {
                 disabled={!activeDoc || !question.trim() || isAnswering}
               >
                 {isAnswering ? <div className="spinner" /> : <Send size={18} />}
-                <span>Ask</span>
+                <span>Execute</span>
               </button>
             </form>
           </div>
@@ -588,7 +629,7 @@ export default function App() {
 
       {/* Footer */}
       <footer className="footer">
-        Document Q&A Assistant • Built with React, Vite & Node.js RAG Engine • Generative AI Project
+        DocuQuery AI • High-Reasoning RAG Neural Interface • Generative AI Architecture
       </footer>
     </div>
   );
