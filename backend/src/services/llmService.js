@@ -5,18 +5,19 @@ import { config } from '../config.js';
 
 export class LLMService {
   /**
-   * Generates grounded answer using provided context and question
+   * Generates grounded answer using high-reasoning LLM models (e.g. 120B Flagship)
    */
   static async generateAnswer(context, question) {
-    const systemPrompt = `You are a strict, precise document question-answering assistant.
+    const systemPrompt = `You are an expert, high-reasoning document analysis assistant.
 
-Answer the user's question accurately using ONLY the provided document context below.
+Analyze the provided DOCUMENT CONTEXT carefully and answer the user's question with precision.
 
-Rules:
-1. Formulate a clear, direct, and concise answer based strictly on the context.
-2. If the answer CANNOT be found in the context, respond EXACTLY with:
+Grounding Guidelines:
+1. Base your answer strictly on the provided DOCUMENT CONTEXT.
+2. Provide a clear, comprehensive, and accurate response.
+3. If the answer cannot be found in or deduced from the context, respond strictly with:
 "I couldn't find that information in the uploaded document."
-3. Do NOT extrapolate, speculate, or invent any information not present in the context.
+4. Do not speculate or introduce outside knowledge.
 
 DOCUMENT CONTEXT:
 ${context}
@@ -27,32 +28,41 @@ ${question}`;
     const groqKey = config.GROQ_API_KEY || (config.LLM_API_KEY?.startsWith('gsk_') ? config.LLM_API_KEY : '');
     const geminiKey = config.GEMINI_API_KEY || (config.LLM_API_KEY?.startsWith('AIza') ? config.LLM_API_KEY : '');
 
-    // 1. Try Groq (Llama-3.1-8b-instant, Llama-3.3-70b-versatile)
+    // 1. High-Reasoning 120B Flagship Model on Groq (openai/gpt-oss-120b, qwen/qwen3.8-27b)
     if (groqKey) {
       try {
         const groq = new Groq({ apiKey: groqKey });
-        const groqModels = [config.GROQ_MODEL, 'llama-3.1-8b-instant', 'llama-3.3-70b-versatile', 'llama3-8b-8192'].filter(Boolean);
-        for (const m of groqModels) {
+        const groqReasoningModels = [
+          config.GROQ_MODEL || 'openai/gpt-oss-120b',
+          'openai/gpt-oss-120b',
+          'qwen/qwen3.8-27b',
+          'openai/gpt-oss-20b'
+        ].filter(Boolean);
+
+        for (const m of groqReasoningModels) {
           try {
             const chatCompletion = await groq.chat.completions.create({
               messages: [{ role: 'user', content: systemPrompt }],
               model: m,
               temperature: 0.1
             });
-            const ans = chatCompletion.choices[0]?.message?.content?.trim();
-            if (ans) return ans;
+            let ans = chatCompletion.choices[0]?.message?.content?.trim();
+            if (ans) {
+              ans = ans.replace(/<think>[\s\S]*?<\/think>/gi, '').trim();
+              return ans;
+            }
           } catch (e) {
-            console.warn(`Groq model ${m} attempt:`, e.message);
+            console.warn(`Groq model ${m} attempt notice:`, e.message);
           }
         }
       } catch (err) {
-        console.warn('Groq provider error:', err.message);
+        console.warn('Groq provider notice:', err.message);
       }
     }
 
-    // 2. Try Google Gemini (gemini-3.8-flash, gemini-2.5-flash, gemini-1.5-flash)
+    // 2. Google Gemini Models (gemini-3.8-flash, gemini-2.5-flash)
     if (geminiKey) {
-      const geminiModels = ['gemini-3.8-flash', 'gemini-2.5-flash', 'gemini-1.5-flash', config.GEMINI_MODEL].filter(Boolean);
+      const geminiModels = [config.GEMINI_MODEL, 'gemini-3.8-flash', 'gemini-2.5-flash'].filter(Boolean);
       for (const m of geminiModels) {
         try {
           const genAI = new GoogleGenerativeAI(geminiKey);
@@ -62,17 +72,17 @@ ${question}`;
           const text = response.text()?.trim();
           if (text) return text;
         } catch (e) {
-          console.warn(`Gemini model ${m} attempt:`, e.message);
+          console.warn(`Gemini model ${m} attempt notice:`, e.message);
         }
       }
     }
 
-    // 3. Try OpenAI / OpenRouter if configured
+    // 3. OpenAI / OpenRouter if configured
     if (config.OPENAI_API_KEY) {
       try {
         const openai = new OpenAI({ apiKey: config.OPENAI_API_KEY });
         const response = await openai.chat.completions.create({
-          model: config.OPENAI_MODEL || 'gpt-4o-mini',
+          model: config.OPENAI_MODEL || 'gpt-4o',
           messages: [{ role: 'user', content: systemPrompt }],
           temperature: 0.1
         });
@@ -88,7 +98,7 @@ ${question}`;
   }
 
   /**
-   * Deterministic extractive fallback
+   * Extractive grounded fallback
    */
   static mockGroundedResponse(context, question) {
     if (!context || context.trim().length === 0) {
