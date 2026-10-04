@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+*.env
+!.env.example
+*.sqlite
+*.db
+backend/chroma_db/
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+# Node
+node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
+.npm
+.eslintcache
+
+# IDE / OS
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
