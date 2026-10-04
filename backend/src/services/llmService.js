@@ -15,15 +15,15 @@ export class LLMService {
    * Generates grounded answer using provided context and question
    */
   static async generateAnswer(context, question) {
-    const systemPrompt = `You are a strict document question-answering assistant.
+    const systemPrompt = `You are a strict, precise document question-answering assistant.
 
-Answer the user's question using ONLY the provided document context.
+Answer the user's question accurately using ONLY the provided document context below.
 
-If the answer cannot be directly and explicitly found in the context, say:
+Rules:
+1. If the answer is directly stated or clearly implied in the context, formulate a clear, direct, and concise answer.
+2. If the answer CANNOT be found in the context, you MUST respond exactly with:
 "I couldn't find that information in the uploaded document."
-
-Do NOT extrapolate, do NOT speculate, and do NOT invent information.
-Keep the answer clear, accurate, and concise.
+3. Do NOT extrapolate, speculate, or mention information from outside the provided context.
 
 DOCUMENT CONTEXT:
 ${context}
@@ -31,68 +31,76 @@ ${context}
 QUESTION:
 ${question}`;
 
-    const provider = config.LLM_PROVIDER.toLowerCase();
+    const provider = (config.LLM_PROVIDER || 'gemini').toLowerCase();
+    const apiKey = config.GEMINI_API_KEY || config.GROQ_API_KEY || config.OPENAI_API_KEY || config.LLM_API_KEY;
 
-    // 1. Google Gemini Provider
-    if ((provider === 'gemini' || !provider) && (config.GEMINI_API_KEY || config.LLM_API_KEY)) {
-      try {
-        const apiKey = config.GEMINI_API_KEY || config.LLM_API_KEY;
-        const genAI = new GoogleGenerativeAI(apiKey);
-        const model = genAI.getGenerativeModel({ model: config.GEMINI_MODEL });
-        const result = await model.generateContent(systemPrompt);
-        const response = await result.response;
-        return response.text().trim();
-      } catch (err) {
-        console.error('Gemini API error:', err.message);
-        throw new Error(`Gemini LLM error: ${err.message}`);
+    // 1. Google Gemini API (Recommended & Free)
+    if (provider === 'gemini' || (apiKey && apiKey.startsWith('AIza'))) {
+      if (apiKey) {
+        const modelsToTry = [config.GEMINI_MODEL, 'gemini-1.5-flash', 'gemini-2.0-flash', 'gemini-1.5-pro'].filter(Boolean);
+        let lastError = null;
+
+        for (const modelName of modelsToTry) {
+          try {
+            const genAI = new GoogleGenerativeAI(apiKey);
+            const model = genAI.getGenerativeModel({ model: modelName });
+            const result = await model.generateContent(systemPrompt);
+            const response = await result.response;
+            const text = response.text()?.trim();
+            if (text) return text;
+          } catch (err) {
+            lastError = err;
+            console.warn(`Gemini model ${modelName} attempt failed:`, err.message);
+          }
+        }
+
+        if (lastError) {
+          console.error('All Gemini model attempts failed:', lastError.message);
+          throw new Error(`Gemini API Error: ${lastError.message}. Please check your API key.`);
+        }
       }
     }
 
-    // 2. Groq Provider (e.g. Llama-3.1-8b free tier)
+    // 2. Groq Cloud API (Free & Ultra Fast)
     if (provider === 'groq' && (config.GROQ_API_KEY || config.LLM_API_KEY)) {
       try {
-        const apiKey = config.GROQ_API_KEY || config.LLM_API_KEY;
-        const groq = new Groq({ apiKey });
+        const groqKey = config.GROQ_API_KEY || config.LLM_API_KEY;
+        const groq = new Groq({ apiKey: groqKey });
         const chatCompletion = await groq.chat.completions.create({
-          messages: [
-            {
-              role: 'user',
-              content: systemPrompt
-            }
-          ],
-          model: config.GROQ_MODEL,
+          messages: [{ role: 'user', content: systemPrompt }],
+          model: config.GROQ_MODEL || 'llama-3.1-8b-instant',
           temperature: 0.1
         });
         return chatCompletion.choices[0]?.message?.content?.trim() || '';
       } catch (err) {
         console.error('Groq API error:', err.message);
-        throw new Error(`Groq LLM error: ${err.message}`);
+        throw new Error(`Groq API Error: ${err.message}`);
       }
     }
 
-    // 3. OpenAI / OpenRouter Provider
+    // 3. OpenAI / OpenRouter API
     if (provider === 'openai' && (config.OPENAI_API_KEY || config.LLM_API_KEY)) {
       try {
-        const apiKey = config.OPENAI_API_KEY || config.LLM_API_KEY;
-        const openai = new OpenAI({ apiKey });
+        const openAiKey = config.OPENAI_API_KEY || config.LLM_API_KEY;
+        const openai = new OpenAI({ apiKey: openAiKey });
         const response = await openai.chat.completions.create({
-          model: config.OPENAI_MODEL,
+          model: config.OPENAI_MODEL || 'gpt-4o-mini',
           messages: [{ role: 'user', content: systemPrompt }],
           temperature: 0.1
         });
         return response.choices[0]?.message?.content?.trim() || '';
       } catch (err) {
         console.error('OpenAI API error:', err.message);
-        throw new Error(`OpenAI LLM error: ${err.message}`);
+        throw new Error(`OpenAI API Error: ${err.message}`);
       }
     }
 
-    // 4. Local Deterministic Grounded Engine (Fall-back when API key is not supplied)
+    // 4. Fallback Extractive Matcher when no API key is present
     return this.mockGroundedResponse(context, question);
   }
 
   /**
-   * Deterministic local fallback generator for testing without an active API key
+   * Extractive fallback matcher when no API key is provided
    */
   static mockGroundedResponse(context, question) {
     if (!context || context.trim().length === 0) {
@@ -109,9 +117,8 @@ ${question}`;
       return "I couldn't find that information in the uploaded document.";
     }
 
-    // Break context into clean sentences
     const rawSentences = context
-      .replace(/\[Source \d+[^\]]*\]:/g, '') // remove citation headers from text
+      .replace(/\[Source \d+[^\]]*\]:/g, '')
       .split(/(?<=[.?!])\s+/);
 
     const matchingSentences = [];
@@ -127,20 +134,18 @@ ${question}`;
         }
       }
 
-      // If at least one meaningful question keyword appears
       if (matchedTokens > 0) {
         matchingSentences.push({
           sentence,
-          matchedTokens,
-          ratio: matchedTokens / qTokens.length
+          matchedTokens
         });
       }
     }
 
     if (matchingSentences.length > 0) {
       matchingSentences.sort((a, b) => b.matchedTokens - a.matchedTokens);
-      const topMatches = matchingSentences.filter(m => m.matchedTokens === matchingSentences[0].matchedTokens);
-      return topMatches.map(m => m.sentence).join(' ');
+      const best = matchingSentences.slice(0, 2).map(m => m.sentence).join(' ');
+      return best;
     }
 
     return "I couldn't find that information in the uploaded document.";
